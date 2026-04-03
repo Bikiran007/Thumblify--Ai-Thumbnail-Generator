@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import Thumbnail from "../models/Thumbnail.js";
-import { GenerateContentConfig, HarmBlockThreshold, HarmCategory } from "@google/genai";
 import ai from "../configs/ai.js";
 import path from "path";
 import fs  from "fs";
@@ -43,24 +42,6 @@ export const generateThumbnail = async (req: Request, res: Response)=>{
             isGenerationg: true
         })
 
-        const model = 'Gemini 2.5 Flash TTS';
-        const generationConfig: GenerateContentConfig = {
-            maxOutputTokens: 32768,
-            temperature: 1,
-            topP: 0.95,
-            responseModalities: ['IMAGE'],
-            imageConfig: {
-                aspectRatio: aspect_ratio || '16:9',
-                imageSize: '1K'
-            },
-            safetySettings: [
-                {category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.OFF},
-                {category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.OFF},
-                {category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.OFF},
-                {category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.OFF},
-            ]
-        }
-
         let prompt = `Create a ${stylePrompts[style as keyof typeof stylePrompts]} for: "${title}"`;
 
         if(color_scheme){
@@ -68,32 +49,21 @@ export const generateThumbnail = async (req: Request, res: Response)=>{
         }
 
         if(user_prompt){
-            prompt += `Additonal details: ${user_prompt}.`
+            prompt += `Additional details: ${user_prompt}.`
         }
 
         prompt += `The thumbnail should be ${aspect_ratio}, visually stunning, and designed to maximize click-through rate. Make it bold, professional, and impossible to ignore.`
 
-        // Generate the thumbnail using the ai model
-        const response : any = await ai.models.generateContent({
-            model,
-            contents: [prompt],
-            config: generationConfig
-        })
+        // Generate the thumbnail using Hugging Face API
+        const response = await ai.textToImage(prompt, {
+          width: aspect_ratio === '16:9' ? 1024 : aspect_ratio === '1:1' ? 512 : 768,
+          height: aspect_ratio === '16:9' ? 576 : aspect_ratio === '1:1' ? 512 : 512,
+          num_inference_steps: 20,
+          guidance_scale: 7.5
+        });
 
-        // Check if the response is valid
-        if(!response?.candidates?.[0]?.content?.parts) {
-            throw new Error('Unexpected response from AI model');
-        }
-
-        const parts = response.candidates[0].content.parts;
-
-        let finalBuffer: Buffer | null = null;
-
-        for(const part of parts){
-            if(part.inlineData){
-                finalBuffer = Buffer.from(part.inlineData.data, 'base64')
-            }
-        }
+        // Convert the response to buffer
+        const finalBuffer = Buffer.from(await response.arrayBuffer());
 
         const filename = `final-output-${Date.now()}.png`;
         const filePath = path.join('images', filename);

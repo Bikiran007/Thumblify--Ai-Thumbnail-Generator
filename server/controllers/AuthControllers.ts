@@ -47,12 +47,18 @@ export const loginUser = async (req: Request, res: Response)=>{
     try {
         const { email, password} = req.body;
 
+        console.log("Login attempt for email:", email);
+
         // Find user by email
         const user = await User.findOne({email});
+        console.log("User found:", user ? "Yes" : "No");
         if(!user){
             return res.status(400).json({message: 'Invalid email or password'})
         }
+        console.log("Entered password:", password);
+        console.log("Stored hash:", user.password);
         const isPasswordCorrect = await bcrypt.compare(password, user.password)
+        console.log("Password match:", isPasswordCorrect);
         if(!isPasswordCorrect) {
             return res.status(400).json({message: 'Invalid email or password'})
         }

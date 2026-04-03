@@ -1,7 +1,7 @@
-import "dotenv/config";
+import 'dotenv/config';
+
 import express, { Request, Response } from 'express';
 import cors from "cors";
-import 'dotenv/config';
 import connectDB from "./configs/db.js";
 import session from "express-session";
 import MongoStore from "connect-mongo"; 
@@ -22,20 +22,20 @@ await connectDB()
 const app = express();
 
 // Middleware
-app.use(cors())
 app.use(express.json());
 
 
-app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
-    credentials: true
-}))
+
 
 app.use(session({
     secret: process.env.SESSION_SECRET as string,
     resave: false,
     saveUninitialized: false,
-    cookie: {maxAge: 1000 * 60 * 60 * 24 * 7} , // 7 days
+    cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 7,
+        secure: false, // Set to true if using HTTPS
+        sameSite: 'lax',
+    } , // 7 days
     store: new MongoStore({
         mongoUrl: process.env.MONGODB_URI as string,
         collectionName: 'sessions'
@@ -43,9 +43,39 @@ app.use(session({
 }))
 
 
-app.use(express.json())
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175"
+];
+
+app.use((req, res, next) => {
+  const originalSetHeader = res.setHeader;
+
+  res.setHeader = function (name, value) {
+    if (name.toLowerCase().includes("access-control")) {
+      console.log("SET HEADER:", name, value);
+    }
+    return originalSetHeader.apply(this, arguments as any);
+  };
+
+  next();
+});
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, origin); // ✅ NOT true
+    }
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+};
+app.use(cors(corsOptions));
+
 
 app.get('/', (req: Request, res: Response) => {
+    console.log("Received request at /");
     res.send('Server is Live!');
 });
 app.use('/api/auth', AuthRouter)
