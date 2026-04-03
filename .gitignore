@@ -1,4 +1,5 @@
 node_modules
+#Secret files
 .env
 dist
 build
