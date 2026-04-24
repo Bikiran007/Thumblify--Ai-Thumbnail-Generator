@@ -10,14 +10,6 @@ Generate eye-catching thumbnails using AI in seconds 🚀
 
 ---
 
-## 📸 Demo
-
-> Add your screenshots or GIF here
-
-![Demo](./assets/demo.png)
-
----
-
 ## ✨ Features
 
 * 🎨 AI-powered thumbnail generation
